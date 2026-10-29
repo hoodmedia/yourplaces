@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0c0e13">
+<title>Video Collection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0e13; --surface:#151922; --surface-2:#1d2230; --line:#262c3a;
+  --text:#eceef4; --muted:#8b93a7; --accent:#6c8cff; --accent-2:#a78bfa;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:auto}
+body{
+  font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,.thumb:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+[hidden]{display:none!important}
+
+/* Header */
+header{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:calc(12px + env(safe-area-inset-top,0)) 20px 12px;
+  background:rgba(12,14,19,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.brand{font-weight:800;font-size:1.15rem;letter-spacing:-.02em;background:none;text-align:left}
+.count{color:var(--muted);font-size:.85rem;font-weight:500}
+
+/* Player view */
+.stage{
+  position:relative;overflow:hidden;padding:20px 16px 8px;
+  background:
+    radial-gradient(60% 70% at 50% 0%,rgba(108,140,255,.20),transparent 70%),
+    radial-gradient(40% 50% at 85% 30%,rgba(167,139,250,.12),transparent 70%);
+}
+.player-wrap{max-width:440px;margin:0 auto}
+.back{margin-bottom:14px}
+.frame{
+  position:relative;width:100%;aspect-ratio:9/16;max-height:calc(100vh - 230px);min-height:320px;
+  margin:0 auto;border-radius:22px;overflow:hidden;background:#000;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.8),0 0 0 1px var(--line);
+}
+.frame video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+.spinner{position:absolute;inset:0;display:none;place-items:center;pointer-events:none}
+.spinner::after{
+  content:"";width:38px;height:38px;border-radius:50%;
+  border:3px solid rgba(255,255,255,.2);border-top-color:#fff;animation:spin .8s linear infinite;
+}
+.frame.loading .spinner{display:grid}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{
+  position:absolute;left:12px;right:12px;bottom:64px;padding:10px 14px;border-radius:12px;
+  background:rgba(20,22,30,.92);font-size:.85rem;text-align:center;display:none;
+}
+.frame.error .toast{display:block}
+
+.now{display:flex;justify-content:space-between;align-items:baseline;margin:16px 4px 10px}
+.now h2{font-size:1.05rem;font-weight:700;letter-spacing:-.01em}
+.now span{color:var(--muted);font-size:.85rem}
+.controls{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;
+  background:var(--surface-2);border:1px solid var(--line);font-weight:600;font-size:.88rem;
+  transition:background .15s,border-color .15s,transform .1s;
+}
+.btn:hover{background:#252b3b}
+.btn:active{transform:scale(.97)}
+.btn svg{width:18px;height:18px;fill:currentColor}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#0b0d14}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:rgba(108,140,255,.12)}
+.hint{text-align:center;color:var(--muted);font-size:.78rem;margin-top:12px}
+@media (hover:none){.hint{display:none}}
+
+/* Lists */
+.list{max-width:1280px;margin:0 auto;padding:28px 16px 60px}
+.list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.list-head h3{font-size:1.1rem;font-weight:700;letter-spacing:-.01em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.thumb{
+  position:relative;aspect-ratio:9/16;border-radius:var(--radius);overflow:hidden;
+  background:var(--surface);border:1px solid var(--line);cursor:pointer;padding:0;text-align:left;
+  transition:transform .18s,border-color .18s;
+}
+.thumb:hover{transform:translateY(-3px);border-color:#3a4358}
+.thumb video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.thumb .no{
+  position:absolute;left:8px;bottom:8px;padding:3px 9px;border-radius:999px;font-size:.74rem;font-weight:700;
+  background:rgba(12,14,19,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.thumb .play{
+  position:absolute;inset:0;display:grid;place-items:center;
+  background:linear-gradient(transparent 55%,rgba(0,0,0,.4));
+}
+.thumb .play i{
+  width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(12,14,19,.6);border:1px solid rgba(255,255,255,.35);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  transition:transform .18s,background .18s;
+}
+.thumb:hover .play i{transform:scale(1.1);background:var(--accent)}
+.thumb .play svg{width:22px;height:22px;fill:#fff;margin-left:2px}
+.thumb.bad{opacity:.35}
+.sentinel{height:60px;display:grid;place-items:center;color:var(--muted);font-size:.85rem}
+
+/* Ads */
+.ad-slot{
+  display:flex;flex-direction:column;align-items:center;gap:4px;margin:18px auto 0;
+  min-height:70px;max-width:320px;
+}
+.ad-slot::before{content:"Advertisement";color:var(--muted);font-size:.68rem;font-weight:600}
+.ad-slot iframe{border:0;width:320px;height:50px;max-width:100%;display:block;background:transparent}
+.home-ad{margin:0 auto 22px}
+.promo{
+  display:block;margin:16px auto 0;padding:12px 16px;border-radius:14px;text-decoration:none;color:var(--text);
+  background:linear-gradient(135deg,rgba(108,140,255,.16),rgba(167,139,250,.16));
+  border:1px solid rgba(108,140,255,.35);font-size:.9rem;font-weight:600;text-align:center;line-height:1.4;
+  transition:border-color .15s,transform .1s;
+}
+.promo:hover{border-color:var(--accent)}
+.promo:active{transform:scale(.98)}
+.promo small{display:block;color:var(--muted);font-size:.68rem;font-weight:600;margin-bottom:2px}
+.adcard{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;text-align:center;
+  padding:18px 14px;text-decoration:none;color:var(--text);
+  background:
+    radial-gradient(90% 60% at 50% 0%,rgba(167,139,250,.28),transparent 75%),
+    var(--surface-2);
+}
+.adcard:hover{transform:translateY(-3px);border-color:var(--accent)}
+.adcard small{position:absolute;top:10px;left:12px;color:var(--muted);font-size:.68rem;font-weight:600}
+.adcard strong{font-size:1rem;line-height:1.3;letter-spacing:-.01em}
+.adcard span.cta{
+  padding:8px 16px;border-radius:999px;font-size:.82rem;font-weight:700;color:#0b0d14;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+}
+.break{
+  position:absolute;inset:0;z-index:5;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:24px;text-align:center;background:rgba(8,10,15,.94);
+}
+.frame.break-on .break{display:flex}
+.break small{color:var(--muted);font-size:.72rem;font-weight:600}
+.break h4{font-size:1.15rem;font-weight:800;letter-spacing:-.01em}
+.break p{color:var(--muted);font-size:.88rem;max-width:260px;line-height:1.5}
+.break .btn[disabled]{opacity:.55;cursor:not-allowed}
+
+/* Sponsored pre-roll */
+.preroll{
+  position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;
+  background:rgba(5,6,10,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.pr-card{width:min(92vw,360px);display:flex;flex-direction:column;gap:12px}
+.pr-stage{
+  position:relative;aspect-ratio:9/16;max-height:calc(100vh - 120px);width:100%;margin:0 auto;
+  border-radius:22px;overflow:hidden;background:#000;box-shadow:0 30px 80px -20px #000,0 0 0 1px var(--line);
+}
+.pr-v{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s ease;transform-origin:50% 50%}
+.pr-v.on{opacity:1;animation:kb 5s linear forwards}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(1.12)}}
+.pr-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 45%,transparent 45%,rgba(0,0,0,.65))}
+.pr-bar{position:absolute;left:0;right:0;height:11%;background:#000;pointer-events:none}
+.pr-top{top:0}.pr-bot{bottom:0}
+.pr-prog{position:absolute;top:calc(11% + 8px);left:12px;right:12px;display:flex;gap:4px}
+.pr-prog i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.28);overflow:hidden;position:relative}
+.pr-prog i::after{content:"";position:absolute;inset:0;background:#fff;transform:scaleX(0);transform-origin:left}
+.pr-prog i.done::after{transform:scaleX(1)}
+.pr-prog i.cur::after{animation:fill var(--seg,3.5s) linear forwards}
+@keyframes fill{to{transform:scaleX(1)}}
+.pr-tag{
+  position:absolute;left:14px;top:calc(11% + 22px);padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:700;
+  background:rgba(12,14,19,.65);border:1px solid rgba(255,255,255,.25)
+}
+.pr-copy{
+  position:absolute;left:18px;right:18px;bottom:calc(11% + 18px);font-size:1.35rem;font-weight:800;line-height:1.2;
+  letter-spacing:-.02em;text-shadow:0 2px 14px rgba(0,0,0,.7);opacity:0;transform:translateY(8px);
+  transition:opacity .5s ease,transform .5s ease
+}
+.pr-copy.in{opacity:1;transform:none}
+.pr-sound{
+  position:absolute;right:12px;top:calc(11% + 18px);width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(12,14,19,.65);border:1px solid rgba(255,255,255,.25)
+}
+.pr-sound svg{width:18px;height:18px;fill:#fff}
+.pr-actions{display:flex;gap:10px;justify-content:center}
+.pr-actions .btn{flex:1;justify-content:center;text-decoration:none;white-space:nowrap}
+.pr-actions .btn[disabled]{opacity:.55;cursor:not-allowed}
+body.pr-open{overflow:hidden}
+
+@media (min-width:900px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="brand" id="home" aria-label="Back to all videos">Video Collection</button>
+  <div class="count" id="count">Loading…</div>
+</header>
+
+<!-- Home: grid of videos -->
+<main class="list" id="homeView">
+  <div class="ad-slot home-ad" id="adHome"></div>
+  <div class="list-head"><h3>All videos</h3></div>
+  <div class="grid" id="homeGrid"></div>
+  <div class="sentinel" id="homeSentinel"></div>
+</main>
+
+<!-- Watch: player + more videos below -->
+<div id="watchView" hidden>
+  <section class="stage">
+    <div class="player-wrap">
+      <button class="btn back" id="back" aria-label="Back to all videos">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>Back
+      </button>
+      <div class="frame loading" id="frame">
+        <video id="player" controls playsinline preload="metadata"></video>
+        <div class="spinner"></div>
+        <div class="toast" id="toast">This video can't be loaded. Skipping to the next one…</div>
+        <div class="break" id="break" role="dialog" aria-live="polite" aria-label="Sponsored break">
+          <small>Sponsored break</small>
+          <h4>Quick message from our sponsor</h4>
+          <p>It keeps this site free. Your video is paused and will resume right where you left off.</p>
+          <button class="btn primary" id="resume" disabled>Continue in 5</button>
+        </div>
+      </div>
+
+      <div class="now">
+        <h2 id="title">Video 1</h2>
+        <span id="pos"></span>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="prev" aria-label="Previous video">
+          <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 18V6z"/></svg>Previous
+        </button>
+        <button class="btn primary" id="next" aria-label="Next video">
+          Next<svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+        </button>
+        <button class="btn" id="shuffle" aria-label="Play a random video">
+          <svg viewBox="0 0 24 24"><path d="M10.6 9.2 7.4 6H4V4h4.2l4 4zM14.5 4 17 6.5 4 19.5 5.5 21 18.5 8 21 10.5V4zM14.2 13.6l-1.4 1.4 3.4 3.4-2.7 0V20H21v-6.5h-2v2.7z"/></svg>Shuffle
+        </button>
+        <button class="btn" id="auto" aria-pressed="true">
+          <svg viewBox="0 0 24 24"><path d="M12 6V3L8 7l4 4V8c2.8 0 5 2.2 5 5 0 .8-.2 1.6-.6 2.3l1.5 1.5c.7-1.1 1.1-2.4 1.1-3.8 0-3.9-3.1-7-7-7zM7.6 8.7C6.9 9.9 6.5 11.4 6.5 13c0 3.9 3.1 7 7 7v3l4-4-4-4v3c-2.8 0-5-2.2-5-5 0-.8.2-1.6.6-2.3z"/></svg>Autoplay
+        </button>
+      </div>
+      <p class="hint">Shortcuts: J / K = previous / next · Space = play / pause · F = fullscreen · Esc = back</p>
+      <div class="ad-slot" id="adWatch"></div>
+      <a class="promo" href="https://www.profitableratecpmnetwork.com/nc5zmcjibj?key=267ff36a04b29602b5b5fbac97af086f" target="_blank" rel="sponsored noopener noreferrer">
+        <small>Sponsored</small>
+        Everyone is talking about this one. Want to see what you've been missing?
+      </a>
+    </div>
+  </section>
+
+  <section class="list">
+    <div class="list-head"><h3>More videos</h3></div>
+    <div class="grid" id="moreGrid"></div>
+    <div class="sentinel" id="moreSentinel"></div>
+  </section>
+</div>
+
+<!-- Sponsored pre-roll shown before a chosen video opens -->
+<div class="preroll" id="preroll" hidden role="dialog" aria-modal="true" aria-label="Sponsored video">
+  <div class="pr-card">
+    <div class="pr-stage">
+      <video class="pr-v" muted playsinline preload="auto"></video>
+      <video class="pr-v" muted playsinline preload="auto"></video>
+      <div class="pr-vig"></div>
+      <div class="pr-bar pr-top"></div><div class="pr-bar pr-bot"></div>
+      <div class="pr-prog" id="prProg"></div>
+      <span class="pr-tag">Sponsored</span>
+      <button class="pr-sound" id="prSound" aria-label="Turn sound on" aria-pressed="false">
+        <svg viewBox="0 0 24 24"><path id="prSoundIcon" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+      </button>
+      <div class="pr-copy" id="prCopy"></div>
+    </div>
+    <div class="pr-actions">
+      <button class="btn" id="prSkip" disabled>Skip ad in 5</button>
+      <a class="btn primary" id="prGo" href="https://www.profitableratecpmnetwork.com/nc5zmcjibj?key=267ff36a04b29602b5b5fbac97af086f" target="_blank" rel="sponsored noopener noreferrer">Visit sponsor</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const BATCH = 30;
+  const $ = id => document.getElementById(id);
+  const player = $('player'), frame = $('frame');
+  let urls = [], current = -1, autoplay = true, homeScroll = 0;
+  const bad = new Set();
+
+  /* ---------- Ads config ---------- */
+  const SMARTLINK = 'https://www.profitableratecpmnetwork.com/nc5zmcjibj?key=267ff36a04b29602b5b5fbac97af086f';
+  const POPUNDER_SRC = 'https://pl30163906.profitableratecpmnetwork.com/e6/41/85/e6418594117e23da3c9a358b7f975033.js';
+  const BANNER_KEY = '25e756b410549406cb78cc33b15c7add';
+  const FIRST_BREAK_AFTER = 30;   // seconds of watching before the first sponsored break
+  const BREAK_EVERY = 180;        // seconds of watching between later breaks
+  const AD_CARD_EVERY = 12;       // one sponsored card after every N videos in the grids
+
+  // The banner runs inside its own small iframe so it works in any view and never touches the page layout.
+  function mountBanner(slot) {
+    if (!slot || slot.dataset.mounted) return;
+    slot.dataset.mounted = '1';
+    const f = document.createElement('iframe');
+    f.width = 320; f.height = 50; f.setAttribute('scrolling', 'no'); f.setAttribute('title', 'Advertisement');
+    f.srcdoc = '<!DOCTYPE html><html><body style="margin:0;background:transparent">' +
+      '<script>atOptions={"key":"' + BANNER_KEY + '","format":"iframe","height":50,"width":320,"params":{}};<\/script>' +
+      '<script src="https://www.highrevenueformat.com/' + BANNER_KEY + '/invoke.js"><\/script></body></html>';
+    slot.appendChild(f);
+  }
+
+  /* ---------- Sponsored break after watching ---------- */
+  let watched = 0, lastT = 0, breaks = 0, popLoaded = false, breakTimer = null;
+  const resumeBtn = $('resume');
+
+  function showBreak() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    player.pause();
+    frame.classList.add('break-on');
+    let left = 5;
+    resumeBtn.disabled = true; resumeBtn.textContent = 'Continue in ' + left;
+    clearInterval(breakTimer);
+    breakTimer = setInterval(() => {
+      left--;
+      if (left > 0) { resumeBtn.textContent = 'Continue in ' + left; return; }
+      clearInterval(breakTimer);
+      resumeBtn.disabled = false; resumeBtn.textContent = 'Continue watching';
+      resumeBtn.focus({preventScroll: true});
+    }, 1000);
+    breaks++; watched = 0;
+  }
+
+  function hideBreak() {
+    clearInterval(breakTimer);
+    frame.classList.remove('break-on');
+  }
+
+  resumeBtn.addEventListener('click', () => {
+    // The popunder script is loaded here so it fires on this genuine click, not at random.
+    if (!popLoaded) {
+      popLoaded = true;
+      const s = document.createElement('script');
+      s.src = POPUNDER_SRC; s.async = true;
+      document.body.appendChild(s);
+    }
+    hideBreak();
+    player.play().catch(() => {});
+  });
+
+  player.addEventListener('timeupdate', () => {
+    const t = player.currentTime, d = t - lastT;
+    lastT = t;
+    if (player.paused || d <= 0 || d > 1.5 || frame.classList.contains('break-on')) return;
+    watched += d;
+    if (watched >= (breaks === 0 ? FIRST_BREAK_AFTER : BREAK_EVERY)) showBreak();
+  });
+  player.addEventListener('loadstart', () => { lastT = 0; });
+
+  /* ---------- Sponsored pre-roll (before a chosen video opens) ---------- */
+  const PREROLL_COOLDOWN = 60;   // seconds between pre-rolls; set to 0 to show one on every video click
+  const PREROLL_CLIPS = 3;       // number of quick cinematic clips in the ad
+  const CLIP_MS = 3500;          // how long each clip plays
+  const SKIP_AFTER = 5;          // seconds before "Skip Ads" unlocks
+  const COPY = ['Something big is trending', 'Thousands are watching right now', 'Want to see more? Tap Visit sponsor'];
+
+  const pr = {
+    el: $('preroll'), vids: [...document.querySelectorAll('.pr-v')], act: 0,
+    clips: [], n: 0, target: -1, last: 0, tClip: null, tSkip: null, tCopy: null, running: false
+  };
+  const prSkip = $('prSkip'), prCopy = $('prCopy'), prProg = $('prProg');
+  const go = i => { location.hash = '#' + (i + 1); };
+
+  function requestPlay(i) {
+    const cooled = (Date.now() - pr.last) / 1000 >= PREROLL_COOLDOWN;
+    if (urls.length < 2 || !cooled || pr.running) return go(i);
+    startPreroll(i);
+  }
+
+  function shuffled(excl) {
+    const a = urls.map((_, k) => k).filter(k => k !== excl);
+    for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; }
+    return a;
+  }
+
+  function startPreroll(i) {
+    pr.running = true; pr.target = i; pr.last = Date.now();
+    pr.clips = shuffled(i).slice(0, PREROLL_CLIPS); pr.n = 0;
+    prProg.innerHTML = pr.clips.map(() => '<i></i>').join('');
+    prProg.style.setProperty('--seg', CLIP_MS + 'ms');
+    pr.vids.forEach(v => { v.classList.remove('on'); v.muted = true; });
+    $('prSound').setAttribute('aria-pressed', 'false');
+    pr.el.hidden = false;
+    document.body.classList.add('pr-open');
+    player.pause();
+
+    let left = SKIP_AFTER;
+    prSkip.disabled = true; prSkip.textContent = 'Skip ad in ' + left;
+    clearInterval(pr.tSkip);
+    pr.tSkip = setInterval(() => {
+      left--;
+      if (left > 0) { prSkip.textContent = 'Skip ad in ' + left; return; }
+      clearInterval(pr.tSkip);
+      prSkip.disabled = false; prSkip.textContent = 'Skip Ads';
+      prSkip.focus({preventScroll: true});
+    }, 1000);
+    playClip();
+  }
+
+  function playClip() {
+    if (!pr.running) return;
+    clearTimeout(pr.tClip);
+    const k = pr.n % pr.clips.length;
+    if (k === 0) prProg.querySelectorAll('i').forEach(x => x.className = '');
+    const nv = pr.vids[1 - pr.act], old = pr.vids[pr.act];
+    let shown = false, adv = null;
+
+    const reveal = () => {
+      if (shown || !pr.running) return;
+      shown = true;
+      nv.classList.add('on'); old.classList.remove('on');
+      setTimeout(() => { if (!old.classList.contains('on')) old.pause(); }, 700);
+      pr.act = 1 - pr.act;
+      const seg = prProg.children[k];
+      if (seg) { seg.className = 'cur'; }
+      if (k > 0 && prProg.children[k - 1]) prProg.children[k - 1].className = 'done';
+      prCopy.classList.remove('in');
+      clearTimeout(pr.tCopy);
+      pr.tCopy = setTimeout(() => { prCopy.textContent = COPY[k % COPY.length]; prCopy.classList.add('in'); }, 250);
+      adv = setTimeout(() => { pr.n++; playClip(); }, CLIP_MS);
+      pr.tClip = adv;
+    };
+    const fail = () => { if (!shown && pr.running) { pr.n++; if (pr.n < pr.clips.length * 3) playClip(); } };
+
+    nv.classList.remove('on');
+    nv.onloadedmetadata = () => {
+      try { if (isFinite(nv.duration) && nv.duration > 8) nv.currentTime = Math.random() * nv.duration * 0.6; } catch (e) {}
+    };
+    nv.onplaying = reveal;
+    nv.onerror = fail;
+    nv.src = urls[pr.clips[k]];
+    nv.load();
+    nv.play().catch(() => {});
+    // safety net if the clip never starts
+    pr.tClip = setTimeout(() => { if (!shown) fail(); }, 4500);
+  }
+
+  function closePreroll() {
+    pr.running = false;
+    clearTimeout(pr.tClip); clearTimeout(pr.tCopy); clearInterval(pr.tSkip);
+    pr.vids.forEach(v => { v.onplaying = v.onerror = v.onloadedmetadata = null; v.pause(); v.removeAttribute('src'); v.load(); v.classList.remove('on'); });
+    prCopy.classList.remove('in');
+    pr.el.hidden = true;
+    document.body.classList.remove('pr-open');
+  }
+
+  prSkip.addEventListener('click', () => { if (prSkip.disabled) return; const t = pr.target; closePreroll(); go(t); });
+  // The sponsor link opens in a new tab through the normal link; this page then carries on to the chosen video.
+  $('prGo').addEventListener('click', () => { const t = pr.target; setTimeout(() => { closePreroll(); go(t); }, 150); });
+  $('prSound').addEventListener('click', e => {
+    const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    e.currentTarget.setAttribute('aria-pressed', on);
+    e.currentTarget.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
+    pr.vids.forEach(v => { v.muted = !on; });
+  });
+
+  const PLAY_ICON = '<span class="play"><i><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></i></span>';
+
+  /* ---------- Lazy thumbnail loading (shared) ---------- */
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      const el = en.target, v = el.querySelector('video');
+      if (en.isIntersecting) {
+        if (!v.getAttribute('src')) v.src = urls[el.dataset.i] + '#t=0.1';
+      } else if (v.getAttribute('src')) {
+        v.removeAttribute('src'); v.load();
+      }
+    });
+  }, {rootMargin: '400px 0px'});
+
+  function makeAdCard() {
+    const a = document.createElement('a');
+    a.className = 'thumb adcard';
+    a.href = SMARTLINK; a.target = '_blank'; a.rel = 'sponsored noopener noreferrer';
+    a.innerHTML = '<small>Sponsored</small><strong>You won\'t believe what everyone is watching right now</strong>' +
+                  '<span class="cta">See it now</span>';
+    return a;
+  }
+
+  /* ---------- Reusable infinite grid ---------- */
+  function createList(gridEl, sentinelEl) {
+    let order = [], rendered = 0, sio = null;
+
+    function renderMore() {
+      const end = Math.min(rendered + BATCH, order.length);
+      const frag = document.createDocumentFragment();
+      for (let k = rendered; k < end; k++) {
+        const i = order[k];
+        const b = document.createElement('button');
+        b.className = 'thumb' + (bad.has(i) ? ' bad' : '');
+        b.dataset.i = i;
+        b.setAttribute('aria-label', 'Play video ' + (i + 1));
+        b.innerHTML = '<video muted playsinline preload="metadata"></video>' + PLAY_ICON +
+                      '<span class="no">' + (i + 1) + '</span>';
+        b.addEventListener('click', () => requestPlay(i));
+        frag.appendChild(b);
+        io.observe(b);
+        if ((k + 1) % AD_CARD_EVERY === 0) frag.appendChild(makeAdCard());
+      }
+      gridEl.appendChild(frag);
+      rendered = end;
+      sentinelEl.textContent = rendered >= order.length && order.length ? "That's all the videos" : '';
+    }
+
+    function reset(newOrder) {
+      gridEl.querySelectorAll('.thumb').forEach(t => io.unobserve(t));
+      gridEl.innerHTML = '';
+      order = newOrder; rendered = 0;
+      renderMore();
+      if (!sio) {
+        sio = new IntersectionObserver(es => {
+          if (es[0].isIntersecting && rendered < order.length) renderMore();
+        }, {rootMargin: '800px 0px'});
+        sio.observe(sentinelEl);
+      }
+    }
+    return {reset};
+  }
+
+  const homeList = createList($('homeGrid'), $('homeSentinel'));
+  const moreList = createList($('moreGrid'), $('moreSentinel'));
+
+  /* ---------- Views ---------- */
+  function showHome() {
+    if (current !== -1) {
+      player.pause(); player.removeAttribute('src'); player.load();
+      current = -1;
+    }
+    hideBreak();
+    $('watchView').hidden = true;
+    $('homeView').hidden = false;
+    mountBanner($('adHome'));
+    document.title = 'Video Collection';
+    window.scrollTo(0, homeScroll);
+  }
+
+  function openVideo(i, scrollTop = true) {
+    if (i < 0) i = urls.length - 1;
+    if (i >= urls.length) i = 0;
+    if (current === -1) homeScroll = window.scrollY;
+    const changed = i !== current;
+    current = i;
+
+    $('homeView').hidden = true;
+    $('watchView').hidden = false;
+    hideBreak();
+    mountBanner($('adWatch'));
+
+    frame.classList.add('loading');
+    frame.classList.remove('error');
+    player.src = urls[i];
+    player.load();
+    player.play().catch(() => {});
+
+    $('title').textContent = 'Video ' + (i + 1);
+    $('pos').textContent = (i + 1).toLocaleString('en-US') + ' / ' + urls.length.toLocaleString('en-US');
+    document.title = 'Video ' + (i + 1) + ' · Video Collection';
+
+    // "More videos": everything else, starting right after the current one
+    if (changed || !$('moreGrid').children.length) {
+      const order = [];
+      for (let k = 1; k < urls.length; k++) order.push((i + k) % urls.length);
+      moreList.reset(order);
+    }
+    if (scrollTop) window.scrollTo(0, 0);
+  }
+
+  // Moves within the player without adding history entries
+  function step(i) {
+    if (i < 0) i = urls.length - 1;
+    if (i >= urls.length) i = 0;
+    history.replaceState(null, '', '#' + (i + 1));
+    openVideo(i);
+  }
+
+  function route() {
+    const n = parseInt(location.hash.replace('#', ''), 10);
+    if (n > 0 && n <= urls.length) openVideo(n - 1);
+    else showHome();
+  }
+
+  /* ---------- Player events ---------- */
+  const next = () => step(current + 1);
+  const prev = () => step(current - 1);
+
+  player.addEventListener('loadeddata', () => frame.classList.remove('loading'));
+  player.addEventListener('playing', () => frame.classList.remove('loading', 'error'));
+  player.addEventListener('waiting', () => frame.classList.add('loading'));
+  player.addEventListener('ended', () => { if (autoplay) next(); });
+  player.addEventListener('error', () => {
+    if (!player.getAttribute('src') || current < 0) return;
+    frame.classList.remove('loading');
+    frame.classList.add('error');
+    bad.add(current);
+    document.querySelectorAll('.thumb[data-i="' + current + '"]').forEach(t => t.classList.add('bad'));
+    if (bad.size < urls.length) setTimeout(() => { if (frame.classList.contains('error')) next(); }, 1200);
+  });
+
+  /* ---------- Buttons ---------- */
+  $('next').onclick = next;
+  $('prev').onclick = prev;
+  $('back').onclick = () => goHome();
+  $('home').onclick = () => goHome();
+  function goHome() { if (location.hash) location.hash = ''; else showHome(); }
+  $('shuffle').onclick = () => {
+    let r; do { r = Math.floor(Math.random() * urls.length); } while (urls.length > 1 && r === current);
+    step(r);
+  };
+  $('auto').onclick = e => {
+    autoplay = !autoplay;
+    e.currentTarget.setAttribute('aria-pressed', autoplay);
+  };
+
+  document.addEventListener('keydown', e => {
+    if (!pr.el.hidden || current === -1 || e.target.matches('input,textarea')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'k') next();
+    else if (k === 'j') prev();
+    else if (k === 'f') { player.requestFullscreen && player.requestFullscreen(); }
+    else if (e.key === 'Escape' && !document.fullscreenElement) goHome();
+    else if (e.key === ' ' && document.activeElement !== player && !e.target.matches('button')) {
+      e.preventDefault(); player.paused ? player.play() : player.pause();
+    }
+  });
+
+  window.addEventListener('hashchange', route);
+
+  /* ---------- Load list ---------- */
+  async function init() {
+    try {
+      const txt = await (await fetch('videos.txt', {cache: 'no-cache'})).text();
+      urls = [...new Set(txt.split(/\r?\n/).map(s => s.trim()).filter(s => /^https?:\/\//.test(s)))];
+    } catch (e) {
+      $('count').textContent = 'videos.txt not found';
+      return;
+    }
+    if (!urls.length) { $('count').textContent = 'No videos in the list'; return; }
+    $('count').textContent = urls.length.toLocaleString('en-US') + ' videos';
+
+    homeList.reset(urls.map((_, i) => i));
+    route();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
